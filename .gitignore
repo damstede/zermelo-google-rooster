@@ -1,3 +1,8 @@
+# Custom
+credentials.json
+credentials-z.json
+token.json
+
 # Logs
 logs
 *.log
