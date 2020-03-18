@@ -20,9 +20,11 @@ const {google} = require('googleapis');
 const zermeloPrivateAPI = require('./zermelo-private-api.js');
 
 const SCOPES = ['https://www.googleapis.com/auth/calendar'];
-const TOKEN_PATH = 'token.json';
+const TOKEN_PATH = __dirname + '/token.json';
+const CREDENTIALS_PATH = __dirname + '/credentials.json';
+const CREDENTIALS_Z_PATH = __dirname + '/credentials-z.json';
 
-fs.readFile('credentials.json', function(err, content) {
+fs.readFile(CREDENTIALS_PATH, function(err, content) {
     if (err) return console.log('Error loading client secret file: ', err);
     authorize(JSON.parse(content), updateCalendar);
 });
@@ -66,7 +68,7 @@ function getAccessToken(oAuth2Client, callback) {
 function updateCalendar(auth) {
     const calendar = google.calendar({version: 'v3', auth});
 
-    let zermeloCredentials = JSON.parse(fs.readFileSync("credentials-z.json"));
+    let zermeloCredentials = JSON.parse(fs.readFileSync(CREDENTIALS_Z_PATH));
 
     zermeloPrivateAPI.setSchool(zermeloCredentials.school);
     zermeloPrivateAPI.setBranchOfSchool(zermeloCredentials.branch);
@@ -80,6 +82,17 @@ function updateCalendar(auth) {
         }).catch(function(err) {
             console.error(err);
         });
+}
+
+function iterateNextLesson(auth, calendar, schedule, i, lessonCount) {
+    i++;
+    if (i < lessonCount) {
+        console.log("Another round incoming");
+        setTimeout(function() {
+            console.log("Running now");
+            addToCalendar(auth, calendar, schedule, i, lessonCount);
+        }, 100);
+    }
 }
 
 function addToCalendar(auth, calendar, schedule, i, lessonCount) {
@@ -153,14 +166,8 @@ function addToCalendar(auth, calendar, schedule, i, lessonCount) {
                         console.error("There was an error contacting the calendar service: ", err);
                     }
                     console.log("Lesson created", i);
-                    i++;
-                    if (i < lessonCount) {
-                        console.log("Another round incoming");
-                        setTimeout(function() {
-                            console.log("Running now");
-                            addToCalendar(auth, calendar, schedule, i, lessonCount);
-                        }, 100);
-                    }
+                    
+                    iterateNextLesson(auth, calendar, schedule, i, lessonCount);
                 });
             }
             else {
@@ -209,26 +216,12 @@ function addToCalendar(auth, calendar, schedule, i, lessonCount) {
                     });
                 }
 
-                i++;
-                if (i < lessonCount) {
-                    console.log("Another round incoming");
-                    setTimeout(function() {
-                        console.log("Running now");
-                        addToCalendar(auth, calendar, schedule, i, lessonCount);
-                    }, 100);
-                }
+                iterateNextLesson(auth, calendar, schedule, i, lessonCount);
             }
         });
     }
     else {
         console.log("Lesson does not contain students or teachers!");
-        i++;
-        if (i < lessonCount) {
-            console.log("Another round incoming");
-            setTimeout(function() {
-                console.log("Running now");
-                addToCalendar(auth, calendar, schedule, i, lessonCount);
-            }, 100);
-        }
+        iterateNextLesson(auth, calendar, schedule, i, lessonCount);
     }
 }
