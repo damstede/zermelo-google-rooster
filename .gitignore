@@ -2,6 +2,7 @@
 credentials.json
 credentials-z.json
 token.json
+service.json
 
 # Logs
 logs

@@ -20,14 +20,12 @@ const {google} = require('googleapis');
 const zermeloPrivateAPI = require('./zermelo-private-api.js');
 
 const SCOPES = ['https://www.googleapis.com/auth/calendar'];
+const SCOPES_ADMIN = SCOPES.concat(['https://www.googleapis.com/auth/admin.directory.user.readonly']);
 const TOKEN_PATH = __dirname + '/token.json';
+const SERVICE_JSON = __dirname + '/service.json';
 const CREDENTIALS_PATH = __dirname + '/credentials.json';
 const CREDENTIALS_Z_PATH = __dirname + '/credentials-z.json';
-
-fs.readFile(CREDENTIALS_PATH, function(err, content) {
-    if (err) return console.log('Error loading client secret file: ', err);
-    authorize(JSON.parse(content), updateCalendar);
-});
+let servicePrivateKey = require('./service.json');
 
 function authorize(credentials, callback) {
     const {client_secret, client_id, redirect_uris} = credentials.installed;
@@ -43,7 +41,7 @@ function authorize(credentials, callback) {
 function getAccessToken(oAuth2Client, callback) {
     const authUrl = oAuth2Client.generateAuthUrl({
         access_type: 'offline',
-        scope: SCOPES
+        scope: SCOPES_ADMIN
     });
     console.log("Authorize this app by visiting this URL: ", authUrl);
 
@@ -68,6 +66,10 @@ function getAccessToken(oAuth2Client, callback) {
 function updateCalendar(auth) {
     const calendar = google.calendar({version: 'v3', auth});
 
+    console.log("Creating Google Admin SDK Service...");
+    const adminService = google.admin({ version: "directory_v1", auth });
+
+    console.log("Retrieving Zermelo lessons...");
     let zermeloCredentials = JSON.parse(fs.readFileSync(CREDENTIALS_Z_PATH));
 
     zermeloPrivateAPI.setSchool(zermeloCredentials.school);
@@ -76,51 +78,57 @@ function updateCalendar(auth) {
 
     zermeloPrivateAPI.getUpcomingAppointments()
         .then(function(schedule) {
+            console.log("Lessons fetched");
             let lessonCount = schedule.length;
-            addToCalendar(auth, calendar, schedule, 0, lessonCount);
-            console.log("Done");
+            // lessonCount = 3;    /* for debugging */
+            preAddToCalender(adminService, auth, calendar, schedule, 0, lessonCount);
         }).catch(function(err) {
             console.error(err);
         });
 }
 
-function iterateNextLesson(auth, calendar, schedule, i, lessonCount) {
+function iterateNextLesson(adminService, auth, calendar, schedule, i, lessonCount) {
     i++;
     if (i < lessonCount) {
         console.log("Another round incoming");
         setTimeout(function() {
             console.log("Running now");
-            addToCalendar(auth, calendar, schedule, i, lessonCount);
+            preAddToCalender(adminService, auth, calendar, schedule, i, lessonCount);
         }, 100);
     }
 }
 
-function addToCalendar(auth, calendar, schedule, i, lessonCount) {
-    console.log("Adding " + i + " to calendar... ("+(lessonCount - i - 1) + " remaining)");
-    // console.log(schedule[i]);
-    if (schedule[i]["teachers"].length > 0 && schedule[i]["students"].length > 0) {
+function addToCalendar(userAuth, calendar, lesson) {
+    return new Promise(function(resolve, reject) {
         calendar.events.get({
-            calendarId: 'damstede.eu_dtdrvnpojua3snqiqlcs2a64fc@group.calendar.google.com',
-            eventId: 'damstederooster'+schedule[i]['appointmentInstance']
+            auth: userAuth,
+            calendarId: 'primary',
+            eventId: 'damstederooster'+lesson['appointmentInstance']
         }, function(err, res) {
             if (err) {
                 // event does not exist yet, create it
                 let calEvent = {
-                    id: 'damstederooster'+schedule[i]['appointmentInstance'],
-                    summary: schedule[i]["subjects"].join(", ").toUpperCase() + " van " + schedule[i]["teachers"].join(", ").toUpperCase(),
-                    description: "<b>" + schedule[i]["subjects"].join(", ").toUpperCase() + " van " + schedule[i]["teachers"].join(", ").toUpperCase() + " aan " + schedule[i]["groups"].join(", ").toUpperCase() + "</b>" + (schedule[i]["changeDescription"] ? "<br><br>"+schedule[i]["changeDescription"] : ""),
-                    location: schedule[i]["locations"].join(", "),
-                    colorId: parseInt(nearestColor(stc(schedule[i]["subjects"][0]))["name"]),
+                    id: 'damstederooster'+lesson['appointmentInstance'],
+                    summary: lesson["subjects"].join(", ").toUpperCase() + " van " + lesson["teachers"].join(", ").toUpperCase(),
+                    description: "<b>" + lesson["subjects"].join(", ").toUpperCase() + " van " + lesson["teachers"].join(", ").toUpperCase() + " aan " + lesson["groups"].join(", ").toUpperCase() + "</b>" + (lesson["changeDescription"] ? "<br><br>"+lesson["changeDescription"] : ""),
+                    location: lesson["locations"].join(", "),
+                    colorId: parseInt(nearestColor(stc(lesson["subjects"][0]))["name"]),
                     start: {
-                        dateTime: new Date(schedule[i]["start"] * 1000).toISOString(),
+                        dateTime: new Date(lesson["start"] * 1000).toISOString(),
                         timeZone: "Europe/Amsterdam"
                     },
                     end: {
-                        dateTime: new Date(schedule[i]["end"] * 1000).toISOString(),
+                        dateTime: new Date(lesson["end"] * 1000).toISOString(),
                         timeZone: "Europe/Amsterdam"
                     },
                     attendees: [
-
+                        {
+                            email: "systeembeheer@damstede.eu",
+                            displayName: "Systeembeheer Damstede",
+                            optional: true,
+                            responseStatus: "declined",
+                            comment: "Systeembeheer neemt geen deel aan de les, maar is wel toegevoegd om eventueel de les te kunnen ondersteunen."
+                        }
                     ],
                     guestsCanInviteOthers: false,
                     guestsCanModify: false,
@@ -138,90 +146,163 @@ function addToCalendar(auth, calendar, schedule, i, lessonCount) {
                         title: "Zermelo Rooster",
                         url: "https://damstedelyceum.zportal.nl/"
                     },
-                    status: (schedule[i]["cancelled"] ? "cancelled" : "confirmed"),
+                    status: (lesson["cancelled"] ? "cancelled" : "confirmed"),
                     conferenceData: {
                         createRequest: {
-                            requestId: schedule[i]['appointmentInstance']
+                            requestId: lesson['appointmentInstance']
                         }
                     }
                 };
 
-                for (let d = 0; d < schedule[i]["teachers"].length; d++) {
+                for (let d = 0; d < lesson["teachers"].length; d++) {
                     calEvent.attendees.push({
-                        email: schedule[i]["teachers"][d] + "@damstede.eu"
+                        email: lesson["teachers"][d] + "@damstede.eu"
                     });
                 }
-                for (let d = 0; d < schedule[i]["students"].length; d++) {
+                for (let d = 0; d < lesson["students"].length; d++) {
                     calEvent.attendees.push({
-                        email: "n" + schedule[i]["students"][d] + "@damstede.eu"
+                        email: "n" + lesson["students"][d] + "@damstede.eu"
                     });
                 }
 
                 calendar.events.insert({
-                    auth: auth,
-                    calendarId: 'damstede.eu_dtdrvnpojua3snqiqlcs2a64fc@group.calendar.google.com',
+                    auth: userAuth,
+                    calendarId: 'primary',
                     resource: calEvent
-                }, function(err, newEvent) {
-                    if (err) {
-                        console.error("There was an error contacting the calendar service: ", err);
+                }, function(errInsert, newEvent) {
+                    if (errInsert) {
+                        reject("There was an error contacting the calendar service", errInsert);
+                        return;
                     }
-                    console.log("Lesson created", i);
                     
-                    iterateNextLesson(auth, calendar, schedule, i, lessonCount);
+                    console.log("Lesson added");
+                    resolve();
                 });
             }
             else {
                 // event exists, update it (if needed)
-                console.log("Lesson already exists in the schedule! Updating info (if needed)...", i);
-                if (schedule[i]["teachers"].length > 0 && schedule[i]["students"].length > 0) {
+                console.log("Lesson already exists in the schedule! Updating info (if needed)...");
+                if (lesson["teachers"].length > 0 && lesson["students"].length > 0) {
                     let calEvent = {
-                        status: (schedule[i]["cancelled"] ? "cancelled" : "confirmed"),
-                        summary: schedule[i]["subjects"].join(", ").toUpperCase() + " van " + schedule[i]["teachers"].join(", ").toUpperCase(),
-                        description: "<b>" + schedule[i]["subjects"].join(", ").toUpperCase() + " van " + schedule[i]["teachers"].join(", ").toUpperCase() + " aan " + schedule[i]["groups"].join(", ").toUpperCase() + "</b>" + (schedule[i]["changeDescription"] ? "<br><br>"+schedule[i]["changeDescription"] : ""),
-                        location: schedule[i]["locations"].join(", "),
-                        colorId: parseInt(nearestColor(stc(schedule[i]["subjects"][0]))["name"]),
+                        status: (lesson["cancelled"] ? "cancelled" : "confirmed"),
+                        summary: lesson["subjects"].join(", ").toUpperCase() + " van " + lesson["teachers"].join(", ").toUpperCase(),
+                        description: "<b>" + lesson["subjects"].join(", ").toUpperCase() + " van " + lesson["teachers"].join(", ").toUpperCase() + " aan " + lesson["groups"].join(", ").toUpperCase() + "</b>" + (lesson["changeDescription"] ? "<br><br>"+lesson["changeDescription"] : ""),
+                        location: lesson["locations"].join(", "),
+                        colorId: parseInt(nearestColor(stc(lesson["subjects"][0]))["name"]),
                         start: {
-                            dateTime: new Date(schedule[i]["start"] * 1000).toISOString(),
+                            dateTime: new Date(lesson["start"] * 1000).toISOString(),
                             timeZone: "Europe/Amsterdam"
                         },
                         end: {
-                            dateTime: new Date(schedule[i]["end"] * 1000).toISOString(),
+                            dateTime: new Date(lesson["end"] * 1000).toISOString(),
                             timeZone: "Europe/Amsterdam"
                         },
-                        attendees: []
+                        attendees: [
+                            {
+                                email: "systeembeheer@damstede.eu",
+                                displayName: "Systeembeheer Damstede",
+                                optional: true,
+                                responseStatus: "declined",
+                                comment: "Systeembeheer neemt geen deel aan de les, maar is wel toegevoegd om eventueel de les te kunnen ondersteunen."
+                            }
+                        ]
                     };
-                    for (let d = 0; d < schedule[i]["teachers"].length; d++) {
+                    for (let d = 0; d < lesson["teachers"].length; d++) {
                         calEvent.attendees.push({
-                            email: schedule[i]["teachers"][d] + "@damstede.eu"
+                            email: lesson["teachers"][d] + "@damstede.eu"
                         });
                     }
-                    for (let d = 0; d < schedule[i]["students"].length; d++) {
+                    for (let d = 0; d < lesson["students"].length; d++) {
                         calEvent.attendees.push({
-                            email: "n" + schedule[i]["students"][d] + "@damstede.eu"
+                            email: "n" + lesson["students"][d] + "@damstede.eu"
                         });
                     }
                     calendar.events.patch({
-                        calendarId: 'damstede.eu_dtdrvnpojua3snqiqlcs2a64fc@group.calendar.google.com',
-                        eventId: 'damstederooster'+schedule[i]['appointmentInstance'],
+                        auth: userAuth,
+                        calendarId: 'primary',
+                        eventId: 'damstederooster'+lesson['appointmentInstance'],
                         resource: calEvent
                     });
                 }
                 else {
                     calendar.events.patch({
-                        calendarId: 'damstede.eu_dtdrvnpojua3snqiqlcs2a64fc@group.calendar.google.com',
-                        eventId: 'damstederooster'+schedule[i]['appointmentInstance'],
+                        auth: userAuth,
+                        calendarId: 'primary',
+                        eventId: 'damstederooster'+lesson['appointmentInstance'],
                         resource: {
                             status: "cancelled"
                         }
                     });
                 }
 
-                iterateNextLesson(auth, calendar, schedule, i, lessonCount);
+                console.log("Lesson modified");
+                resolve();
             }
         });
+    });
+}
+
+function preAddToCalender(adminService, auth, calendar, schedule, i, lessonCount) {
+    console.log("Adding " + i + " to calendar... ("+(lessonCount - i - 1) + " remaining)");
+    if (schedule[i]["teachers"].length > 0 && schedule[i]["students"].length > 0) {
+        console.log("Retrieving account for "+schedule[i]["teachers"][0]+"...");
+        adminService.users.get({
+            userKey: schedule[i]["teachers"][0]+"@damstede.eu"
+        }, function(err, res) {
+            if (err) {
+                console.warn("User does not exist. The teacher code might not have been added as an alias to an account in your organization.");
+                iterateNextLesson(adminService, auth, calendar, schedule, i, lessonCount);
+            }
+            else {
+                for (let em = 0; em < res.data.emails.length; em++) {
+                    if (res.data.emails[em]["primary"] === true) {
+                        console.log("Logging in as "+res.data.emails[em]["address"]+"...");
+                        let jwtClient = new google.auth.JWT(servicePrivateKey.client_email, SERVICE_JSON, servicePrivateKey.private_key, SCOPES, res.data.emails[em]["address"]);
+                        jwtClient.authorize(function(err, res) {
+                            if (err) {
+                                console.error(err);
+                                console.log("Could not login as user. Adding lesson to the admin calendar instead...");
+
+                                addToCalendar(auth, calendar, schedule[i])
+                                    .then(function() {
+                                        // logging happens in addToCalendar()
+                                    })
+                                    .catch(function(errMsg, err) {
+                                        console.error(errMsg, err);
+                                    })
+                                    .finally(function() {
+                                        iterateNextLesson(adminService, auth, calendar, schedule, i, lessonCount);
+                                    });
+                            }
+                            else {
+                                console.log("Adding lesson to user's calendar...");
+                                addToCalendar(jwtClient, calendar, schedule[i])
+                                    .then(function() {
+                                        // logging happens in addToCalendar()
+                                    })
+                                    .catch(function(errMsg, err) {
+                                        console.error(errMsg, err);
+                                    })
+                                    .finally(function() {
+                                        iterateNextLesson(adminService, auth, calendar, schedule, i, lessonCount);
+                                    });
+                            }
+                        });
+                        return;
+                    }
+                }
+            }
+        });
+        return;
+        
     }
     else {
         console.log("Lesson does not contain students or teachers!");
-        iterateNextLesson(auth, calendar, schedule, i, lessonCount);
+        iterateNextLesson(adminService, auth, calendar, schedule, i, lessonCount);
     }
 }
+
+fs.readFile(CREDENTIALS_PATH, function(err, content) {
+    if (err) return console.log('Error loading client secret file: ', err);
+    authorize(JSON.parse(content), updateCalendar);
+});
