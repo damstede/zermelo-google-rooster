@@ -98,7 +98,7 @@ function iterateNextLesson(adminService, auth, calendar, schedule, i, lessonCoun
     }
 }
 
-function addToCalendar(userAuth, calendar, lesson) {
+function addToCalendar(userAuth, calendar, lesson, noMeeting) {
     return new Promise(function(resolve, reject) {
         calendar.events.get({
             auth: userAuth,
@@ -147,12 +147,19 @@ function addToCalendar(userAuth, calendar, lesson) {
                         url: "https://damstedelyceum.zportal.nl/"
                     },
                     status: (lesson["cancelled"] ? "cancelled" : "confirmed"),
-                    conferenceData: {
+                    
+                };
+
+                if (noMeeting !== true) {
+                    calEvent.conferenceData = {
                         createRequest: {
                             requestId: lesson['appointmentInstance']
                         }
-                    }
-                };
+                    };
+                }
+                else {
+                    calEvent.guestsCanSeeOtherGuests = false;
+                }
 
                 for (let d = 0; d < lesson["teachers"].length; d++) {
                     calEvent.attendees.push({
@@ -251,7 +258,17 @@ function preAddToCalender(adminService, auth, calendar, schedule, i, lessonCount
         }, function(err, res) {
             if (err) {
                 console.warn("User does not exist. The teacher code might not have been added as an alias to an account in your organization.");
-                iterateNextLesson(adminService, auth, calendar, schedule, i, lessonCount);
+                console.log("Adding lesson to the admin calendar, without a meeting attached...");
+                addToCalendar(auth, calendar, schedule[i], true)
+                    .then(function() {
+                        // logging happens in addToCalendar()
+                    })
+                    .catch(function(errMsg, err) {
+                        console.error(errMsg, err);
+                    })
+                    .finally(function() {
+                        iterateNextLesson(adminService, auth, calendar, schedule, i, lessonCount);
+                    });
             }
             else {
                 for (let em = 0; em < res.data.emails.length; em++) {
