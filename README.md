@@ -8,6 +8,7 @@ Rooster voor Damstede, geïmporteerd naar Google Calendar met Hangouts Meet link
 - een Zermelo-rooster met docent- en leerlingaccounts gekoppeld aan lessen
 - kennis van G-suite, Google Calendar, Google Hangouts Meet, Zermelo
 - een Zermelo-beheerder bij jou op school die een access token kan aanmaken met toegang tot alle roosters
+- enige kennis van het Google Cloud Platform is niet vereist, maar kan wel van pas komen
 
 De docent- en leerlingaccounts binnen G-suite dienen als alias (of als hoofd-e-mailadres) de gebruikersnaam van Zermelo te bevatten. Een voorbeeld:
 
@@ -22,7 +23,27 @@ De docent- en leerlingaccounts binnen G-suite dienen als alias (of als hoofd-e-m
 ## Installatie
 Let op dat alle bestanden in een subfolder bewaard dienen te worden. Zet ze niet in een standaard downloads-folder of iets dergelijks.
 
-Allereerst dien je een serviceaccount aan te maken in het [Google Cloud Platform](https://console.cloud.google.com/) onder [IAM & Beheer > Serviceaccounts](https://console.cloud.google.com/iam-admin/serviceaccounts). Hieruit krijg je een bestand, wat gedownload moet worden en geplaatst dient te worden met de naam `service.json` in de installatiemap. Dit bestand heeft een structuur die lijkt op het volgende:
+Allereerst dien je een nieuw Google Cloud project aan te maken. Maak vervolgens OAuth2-credentials aan onder [APIs en services > Inloggegevens](https://console.cloud.google.com/apis/credentials). Doe dit door op "+ gegevens maken" te drukken, te kiezen voor "Client-ID OAuth", dan voor "Overige". Voer een naam in en druk op "maken". Als er wordt gevraagd om "redirect-URLs" op te geven, voeg dan `urn:ietf:wg:oauth:2.0:oob` en `http://localhost` toe.
+
+Druk daarna in het overzicht van alle credentials op de net aangemaakte client-ID. Kies dan voor "JSON downloaden". Sla deze JSON op als `credentials.json` in de installatiemap. Dit bestand heeft een structuur die lijkt op het volgende:
+
+```json
+{
+  "installed": {
+    "client_id": "***",
+    "project_id": "***",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_secret": "***",
+    "redirect_uris": [
+      "urn:ietf:wg:oauth:2.0:oob",
+      "http://localhost"
+    ]
+}
+```
+
+Vervolgens dien je een serviceaccount aan te maken onder [IAM & Beheer > Serviceaccounts](https://console.cloud.google.com/iam-admin/serviceaccounts). Hieruit krijg je een bestand, wat gedownload moet worden en geplaatst dient te worden met de naam `service.json` in de installatiemap. Dit bestand heeft een structuur die lijkt op het volgende:
 
 ```json
 {
@@ -49,14 +70,14 @@ In de installatiemap maak je vervolgens een bestand met de naam `credentials-z.j
 }
 ```
 
-Open vervolgens een terminal (command line interface), en run in de installatiemap het commando `npm install`. Wacht tot de installatie van de benodigde onderdelen is voltooid voor je doorgaat.
+**Dan, een belangrijke stap:** open vervolgens een terminal (command line interface), en run in de installatiemap het commando `npm install`. Wacht tot de installatie van de benodigde onderdelen is voltooid voor je doorgaat.
 
 
 ## Het script uitvoeren & first-time set-up
 
 Run het commando `node main.js`.
 
-Bij de eerste keer starten van het script wordt er gevraagd een Google-account te verbinden via Oauth2. Dit account zal worden gebruikt als systeembeheer-account. Als een docent niet kan worden gevonden in G-suite, dan wordt dit account aan de les gekoppeld. Tevens is dit account bij elke les uitgenodigd ter ondersteuning.
+Bij de eerste keer starten van het script wordt er gevraagd een Google-account te verbinden via OAuth2. Dit account zal worden gebruikt als systeembeheer-account. Als een docent niet kan worden gevonden in G-suite, dan wordt dit account aan de les gekoppeld. Tevens is dit account bij elke les uitgenodigd ter ondersteuning.
 
 Er zal worden gevraagd een URL te bezoeken in een internetbrowser. Doe dit en log in met het Google-account van het systeembeheer op jouw school. Deze moet in G-suite zijn opgenomen. Na het inloggen geeft Google een code terug. Deze dient te worden ingevoerd in het terminalvenster.
 
