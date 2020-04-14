@@ -60,7 +60,7 @@ Bij de eerste keer starten van het script wordt er gevraagd een Google-account t
 
 Er zal worden gevraagd een URL te bezoeken in een internetbrowser. Doe dit en log in met het Google-account van het systeembeheer op jouw school. Deze moet in G-suite zijn opgenomen. Na het inloggen geeft Google een code terug. Deze dient te worden ingevoerd in het terminalvenster.
 
-Hierna zal de verbinding met Zermelo worden gemaakt en worden alle lessen voor de komende 24 uur opgehaald. Deze lessen worden gekoppeld aan de Google Agenda's van de docentenaccounts in G-suite, waarna de leerlingen als deelnemers worden toegevoegd. Dit werkt alleen als de [vereisten](https://github.com/FreekBes/damstede-google-rooster/new/master?readme=1#vereisten) juist zijn! Deze stap kan even duren.
+Hierna zal de verbinding met Zermelo worden gemaakt en worden alle lessen voor de komende 24 uur opgehaald. Deze lessen worden gekoppeld aan de Google Agenda's van de docentenaccounts in G-suite, waarna de leerlingen als deelnemers worden toegevoegd. Dit werkt alleen als de [vereisten](https://github.com/FreekBes/damstede-google-rooster/#vereisten) juist zijn! Deze stap kan even duren.
 
 
 ## Automatiseren
