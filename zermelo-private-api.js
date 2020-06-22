@@ -1,4 +1,5 @@
 const https = require('https');
+const fs = require('fs');
 
 let subdomain = null;
 let accessToken = null;
@@ -52,7 +53,9 @@ exports.getUpcomingAppointments = function() {
                 try {
                     response = JSON.parse(response)["response"];
                     if (response["status"] == 200) {
-                        resolve(response["data"]);
+                        fs.writeFile('zcache.json', JSON.stringify(response["data"]), 'utf8', function() {
+                            resolve(response["data"]);
+                        });
                     }
                     else {
                         reject(response["status"] + " " + response["message"] + " " + response["details"]);
@@ -67,5 +70,24 @@ exports.getUpcomingAppointments = function() {
             reject(err);
         });
         req.end();
+    });
+};
+
+exports.getLastUpcomingAppointments = function() {
+    return new Promise(function(resolve, reject) {
+        fs.readFile('zcache.json', 'utf8', function(err, data) {
+            if (err) {
+                resolve([]);
+            }
+            else {
+                try {
+                    var json = JSON.parse(data);
+                    resolve(json);
+                }
+                catch (error) {
+                    resolve([]);
+                }
+            }
+        });
     });
 };
