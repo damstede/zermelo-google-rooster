@@ -133,7 +133,7 @@ function iterateNextLesson(adminService, auth, calendar, schedule, i, lessonCoun
         setTimeout(function() {
             console.log("Running now");
             preAddToCalender(adminService, auth, calendar, schedule, i, lessonCount);
-        }, 100);
+        }, 250);
     }
 }
 
@@ -175,12 +175,7 @@ function addToCalendar(userAuth, calendar, lesson, noMeeting) {
                         guestsCanSeeOtherGuests: true,
                         reminders: {
                             useDefault: false,
-                            overrides: [
-                                {
-                                    method: 'email',
-                                    minutes: 10
-                                }
-                            ]
+                            overrides: [ ]
                         },
                         source: {
                             title: "Zermelo Rooster",
@@ -189,17 +184,6 @@ function addToCalendar(userAuth, calendar, lesson, noMeeting) {
                         status: (lesson["cancelled"] ? "cancelled" : "confirmed"),
                         
                     };
-
-                    if (noMeeting !== true) {
-                        calEvent.conferenceData = {
-                            createRequest: {
-                                requestId: lesson['appointmentInstance']
-                            }
-                        };
-                    }
-                    else {
-                        calEvent.guestsCanSeeOtherGuests = false;
-                    }
 
                     for (let d = 0; d < lesson["teachers"].length; d++) {
                         calEvent.attendees.push({
@@ -221,9 +205,31 @@ function addToCalendar(userAuth, calendar, lesson, noMeeting) {
                             reject("There was an error contacting the calendar service", errInsert);
                             return;
                         }
-                        
-                        console.log("Lesson added");
-                        resolve();
+
+                        if (noMeeting !== true) {
+                            calendar.events.patch({
+                                auth: userAuth,
+                                calendarId: 'primary',
+                                eventId: 'damstederooster'+lesson['appointmentInstance'],
+                                resource: {
+                                    conferenceData: {
+                                        createRequest: {
+                                            requestId: new Date().getFullYear() + lesson['appointmentInstance']
+                                        }
+                                    }
+                                },
+                                sendNotifications: false,
+                                conferenceDataVersion: 1
+                            }, function(errInsert, newEvent)
+                            {
+                                console.log("Lesson added");
+                                resolve();
+                            });
+                        }
+                        else {
+                            console.log("Lesson added");
+                            resolve();
+                        }
                     });
                 }
                 else {
@@ -282,7 +288,8 @@ function addToCalendar(userAuth, calendar, lesson, noMeeting) {
                             auth: userAuth,
                             calendarId: 'primary',
                             eventId: 'damstederooster'+lesson['appointmentInstance'],
-                            resource: calEvent
+                            resource: calEvent,
+                            conferenceDataVersion: 1
                         });
                         console.log("Lesson modified");
                     }
