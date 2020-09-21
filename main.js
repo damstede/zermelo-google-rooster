@@ -234,6 +234,7 @@ function addToCalendar(userAuth, calendar, lesson, noMeeting) {
                 }
                 else {
                     console.log("Not adding the lesson after all, as it seems to have been cancelled");
+                    resolve();
                 }
             }
             else {
