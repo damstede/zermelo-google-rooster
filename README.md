@@ -66,7 +66,7 @@ In de installatiemap maak je vervolgens een bestand met de naam `credentials-z.j
 {
   "school": "<SCHOOLNAAM_ZERMELO (subdomein zportal.nl, bijv. damstedelyceum)>",
   "token": "<TOKEN_ZERMELO (access token verkregen bij de beheerder van Zermelo op jouw school)>",
-  "branch": <BRANCH_ZERMELO (branch van het huidige schooljaar, bijv. 901)>"
+  "branch": "<BRANCH_ZERMELO (branch van het huidige schooljaar, bijv. 901)>"
 }
 ```
 
