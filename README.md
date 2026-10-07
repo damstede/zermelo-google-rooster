@@ -1,5 +1,5 @@
 # damstede-google-rooster
-Rooster voor Damstede, geïmporteerd naar Google Calendar met Hangouts Meet link i.v.m. COVID-19
+Exporteer Zermelo roosters naar Google Calendar met Hangouts Meet link i.v.m. COVID-19. Gebouwd voor het Damstede Lyceum te Amsterdam.
 
 ## Vereisten
 
@@ -18,7 +18,7 @@ De docent- en leerlingaccounts binnen G-suite dienen als alias (of als hoofd-e-m
 
 
 ## Download
-[Download](https://github.com/FreekBes/damstede-google-rooster/archive/master.zip) of kloon deze repository. Pak het ZIP-bestand uit indien je de repository hebt gedownload met behulp van de link.
+[Download](https://github.com/damstede/zermelo-google-rooster/archive/master.zip) of kloon deze repository. Pak het ZIP-bestand uit indien je de repository hebt gedownload met behulp van de link.
 
 ## Installatie
 Let op dat alle bestanden in een subfolder bewaard dienen te worden. Zet ze niet in een standaard downloads-folder of iets dergelijks.
@@ -100,9 +100,9 @@ Voeg aan het geopende bestand onderaan de volgende regels toe:
 0 16,20,22 * * 7 node /pad/naar/installatiemap/main.js
 ```
 
-Om de dagen en tijden aan te passen kan ik [crontab.guru](https://crontab.guru/) aanbevelen. Dit hulpprogramma laat ook zien wat er met welke regel wordt bedoeld. Probeer het maar eens uit!
+Om de dagen en tijden aan te passen kan ik [crontab.guru](https://crontab.guru/) aanbevelen. Dit hulpprogramma laat qua planning zien wat er met welke regel wordt bedoeld.
 
 
 ## Ondersteuning voor foutoplossing
 
-Mocht er iets mis gaan of niet lukken, maak dan gerust een [Issue](https://github.com/FreekBes/damstede-google-rooster/issues) aan. Ik ben bereid ondersteuning te bieden (tot op zekere hoogte).
+Mocht er iets mis gaan of niet lukken, maak dan gerust een [Issue](https://github.com/damstede/zermelo-google-rooster/issues) aan. Ik ben bereid ondersteuning te bieden (tot op zekere hoogte).
